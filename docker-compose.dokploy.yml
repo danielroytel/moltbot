@@ -93,12 +93,8 @@ services:
           sleep 1
         done
 
-        # Check if daemon is running
-        if ! kill -0 $TAILSCALED_PID 2>/dev/null; then
-          echo "ERROR: tailscaled failed to start"
-          cat /tmp/tailscaled.log
-          exit 1
-        fi
+        # Give daemon a moment to fully initialize
+        sleep 2
 
         # Authenticate with Tailscale
         echo "Authenticating with Tailscale..."
