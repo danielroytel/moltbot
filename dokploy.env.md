@@ -24,9 +24,9 @@ SETUP_PASSWORD=
 CLAWDBOT_GATEWAY_TOKEN=
 ```
 
-## Tailscale Configuration (Optional - Secure Remote Access)
+## Tailscale Configuration (Optional - Secure HTTPS Access)
 
-Using Tailscale provides secure HTTPS access to the Control UI without needing Traefik.
+Using Tailscale Funnel provides a **public HTTPS URL with a valid certificate** - perfect for the Control UI's secure context requirement.
 
 ```bash
 # Get your auth key from: https://login.tailscale.com/admin/settings/keys
@@ -37,11 +37,17 @@ TS_AUTHKEY=tskey-auth-xxxxx
 TAILSCALE_HOSTNAME=moltbot
 ```
 
-After starting, access via:
-- **HTTP**: `http://moltbot-tailnet-name.ts.net:18789/setup`
-- **Or find the Tailscale IP**: `docker exec moltbot-tailscale tailscale ip -4`
+After starting, access via **HTTPS**:
+```
+https://moltbot.ts.net:18789/setup
+```
 
-Then use: `http://<tailscale-ip>:18789/setup`
+Or find your Funnel URL:
+```bash
+docker exec moltbot-tailscale tailscale funnel status
+```
+
+**Note**: Tailscale Funnel requires the Funnel feature to be enabled on your tailnet (https://login.tailscale.com/admin/funnel)
 
 ## State Directory (Internal Container Paths)
 
