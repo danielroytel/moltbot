@@ -74,7 +74,7 @@ CLAWDBOT_STATE_DIR=/home/node/.clawdbot
 MOLTBOT_GATEWAY__MODE=local
 
 # Gateway bind address: "loopback", "lan", "tailnet", "auto", or "custom"
-CLAWDBOT_GATEWAY_BIND=loopback
+CLAWDBOT_GATEWAY_BIND=lan
 
 # Gateway port (default: 18789)
 CLAWDBOT_GATEWAY_PORT=18789
@@ -120,7 +120,7 @@ Configure these persistent volume mounts in Dokploy:
 ## Health Check
 
 ```
-node dist/index.js health --token "$CLAWDBOT_GATEWAY_TOKEN"
+node dist/entry.js health --token "$CLAWDBOT_GATEWAY_TOKEN"
 ```
 
 ## After First Deploy
