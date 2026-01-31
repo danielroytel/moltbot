@@ -23,6 +23,9 @@ services:
       CLAWDBOT_GATEWAY_BIND: ${CLAWDBOT_GATEWAY_BIND:-lan} # Legacy fallback
       PORT: ${PORT:-8080}
       NODE_ENV: ${NODE_ENV:-production}
+      # Tailscale (optional - for built-in Funnel support)
+      TS_AUTHKEY: ${TS_AUTHKEY}
+      TS_HOSTNAME: ${TAILSCALE_HOSTNAME:-moltbot}
 
     volumes:
       - moltbot-config:/home/node/.clawdbot
@@ -66,6 +69,32 @@ services:
         # BLANKET: Own EVERYTHING as node, open all permissions
         chown -R node:node /home/node /home/linuxbrew /usr/local /usr/local/lib/node_modules /usr/local/bin /usr/local/share /usr/local/lib
         chmod -R u+w /home/node /home/linuxbrew /usr/local /usr/local/lib/node_modules /usr/local/bin /usr/local/share /usr/local/lib
+
+        # Install Tailscale if TS_AUTHKEY is provided (for built-in Funnel support)
+        if [ -n "$TS_AUTHKEY" ]; then
+          echo "TS_AUTHKEY set, setting up Tailscale..."
+
+          # Check if tailscale is installed, if not install it
+          if ! command -v tailscale >/dev/null 2>&1; then
+            echo "Installing Tailscale..."
+            curl -fsSL https://tailscale.com/install.sh | sh
+          fi
+
+          # Authenticate with Tailscale
+          echo "Authenticating with Tailscale as $TS_HOSTNAME..."
+          tailscale up --auth-key="$TS_AUTHKEY" --hostname="$TS_HOSTNAME"
+
+          # Verify Tailscale is connected
+          echo "Verifying Tailscale status..."
+          if tailscale status >/dev/null 2>&1; then
+            echo "Tailscale is connected!"
+            tailscale status
+          else
+            echo "Warning: Tailscale may not be fully connected"
+          fi
+        else
+          echo "No TS_AUTHKEY set, skipping Tailscale setup"
+        fi
 
         # Create openclaw CLI wrapper for easy command execution
         cat > /usr/local/bin/openclaw << 'EOF'
