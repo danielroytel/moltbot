@@ -13,6 +13,13 @@ The following variables are **NOT** for Dokploy - they are volume mount sources 
 
 Configure volumes through Dokploy's UI, not environment variables.
 
+## Image Variable (Optional)
+
+```bash
+# Override the Docker image (defaults to ghcr.io/moltbot/moltbot:main)
+OPENCLAW_IMAGE=ghcr.io/moltbot/moltbot:main
+```
+
 ## Required Variables
 
 ```bash
@@ -75,6 +82,12 @@ OPENCLAW_GATEWAY__MODE=local
 
 # Gateway bind address: "loopback", "lan", "tailnet", "auto", or "custom"
 OPENCLAW_GATEWAY_BIND=lan
+
+# Gateway port (default: 18789)
+OPENCLAW_GATEWAY_PORT=18789
+
+# Bridge port (default: 18790)
+OPENCLAW_BRIDGE_PORT=18790
 ```
 
 ## Optional: Claude AI Provider
@@ -115,8 +128,10 @@ Configure these persistent volume mounts in Dokploy:
 
 | Container Path | Description |
 |----------------|-------------|
-| `/home/node/.openclaw` | Config directory (legacy: `/home/node/.clawdbot`) |
-| `/home/node/openclaw` | Workspace directory (legacy: `/home/node/clawd`) |
+| `/home/node/.openclaw` | Config directory (legacy fallback: `/home/node/.clawdbot`) |
+| `/home/node/openclaw` | Workspace directory (legacy fallback: `/home/node/clawd`) |
+
+**Note**: The compose file includes both new (`.openclaw`) and legacy (`.clawdbot`) volume mounts for backward compatibility with existing data.
 
 ## Ports to Expose
 
