@@ -83,34 +83,53 @@ services:
           # Check if tailscale is installed, if not install it
           if ! command -v tailscale >/dev/null 2>&1; then
             echo "Installing Tailscale..."
-            curl -fsSL https://tailscale.com/install.sh | sh
+            if curl -fsSL https://tailscale.com/install.sh | sh; then
+              echo "Tailscale installed successfully"
+            else
+              echo "ERROR: Failed to install Tailscale"
+            fi
+          else
+            echo "Tailscale already installed"
           fi
 
-          # Start tailscaled daemon in background if not already running
-          if ! pgrep -f tailscaled >/dev/null 2>&1; then
-            echo "Starting Tailscale daemon..."
-            mkdir -p /var/run/tailscale
-            tailscaled --tun=userspace-networking --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock > /tmp/tailscaled.log 2>&1 &
-            TAILSCALED_PID=$!
+          # Start tailscaled daemon (idempotent - will restart if already running)
+          echo "Starting Tailscale daemon..."
+          mkdir -p /var/run/tailscale /var/lib/tailscale
 
-            # Wait for daemon socket to be ready
-            echo "Waiting for tailscaled to start..."
-            for i in $(seq 1 30); do
-              if [ -S /var/run/tailscale/tailscaled.sock ]; then
-                echo "tailscaled is ready!"
-                break
-              fi
-              echo "Waiting... ($i/30)"
-              sleep 1
-            done
-            sleep 2
-          else
-            echo "tailscaled already running"
+          # Kill any existing tailscaled first
+          pkill -9 tailscaled 2>/dev/null || true
+          sleep 1
+
+          # Start fresh
+          tailscaled --tun=userspace-networking --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock > /tmp/tailscaled.log 2>&1 &
+          TAILSCALED_PID=$!
+          echo "tailscaled PID: $TAILSCALED_PID"
+
+          # Wait for daemon socket to be ready
+          echo "Waiting for tailscaled socket..."
+          for i in $(seq 1 60); do
+            if [ -S /var/run/tailscale/tailscaled.sock ]; then
+              echo "tailscaled socket is ready!"
+              break
+            fi
+            echo "Waiting... ($i/60)"
+            sleep 1
+          done
+
+          # Verify daemon is actually responding
+          if ! timeout 5 tailscale status >/dev/null 2>&1; then
+            echo "WARNING: tailscaled socket exists but daemon not responding"
+            echo "tailscaled log:"
+            cat /tmp/tailscaled.log 2>/dev/null || true
           fi
 
           # Authenticate with Tailscale
           echo "Authenticating with Tailscale as $TS_HOSTNAME..."
-          tailscale up --auth-key="$TS_AUTHKEY" --hostname="$TS_HOSTNAME"
+          if tailscale up --auth-key="$TS_AUTHKEY" --hostname="$TS_HOSTNAME"; then
+            echo "Tailscale authentication successful"
+          else
+            echo "WARNING: Tailscale authentication failed"
+          fi
 
           # Verify Tailscale is connected
           echo "Verifying Tailscale status..."
