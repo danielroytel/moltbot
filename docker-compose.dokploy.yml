@@ -42,7 +42,7 @@ services:
       - traefik.http.services.moltbot.loadbalancer.server.port=18789
 
     healthcheck:
-      test: ["CMD", "sh", "-c", "su node -c 'node /app/dist/entry.js health --token \"$OPENCLAW_GATEWAY_TOKEN\"'"]
+      test: ["CMD", "sh", "-c", "su node -c 'node /app/dist/entry.js health --token \"${OPENCLAW_GATEWAY_TOKEN:-${CLAWDBOT_GATEWAY_TOKEN}}\"'"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -57,7 +57,8 @@ services:
 
         # Create base directories (support both legacy and new paths)
         mkdir -p /home/node/.clawdbot/cron /home/node/clawd/canvas /home/node/.clawdbot/agents /home/node/.clawdbot/sessions
-        mkdir -p /home/node/.openclaw /home/node/openclaw 2>/dev/null || true
+        mkdir -p /home/node/.openclaw/cron /home/node/.openclaw/agents /home/node/.openclaw/sessions 2>/dev/null || true
+        mkdir -p /home/node/clawd/canvas /home/node/openclaw/canvas 2>/dev/null || true
         mkdir -p /usr/local/lib/node_modules /usr/local/bin /usr/local/share /usr/local/lib
         mkdir -p /home/node/.npm /home/node/.cache /home/node/.cache/Homebrew
         mkdir -p /home/node/.config/git /home/linuxbrew/.linuxbrew
