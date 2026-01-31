@@ -38,7 +38,7 @@ services:
       - traefik.http.services.moltbot.loadbalancer.server.port=18789
 
     healthcheck:
-      test: ["CMD", "sh", "-c", "su node -c 'node /app/dist/index.js health --token \"$CLAWDBOT_GATEWAY_TOKEN\"'"]
+      test: ["CMD", "sh", "-c", "su node -c 'node /app/dist/entry.js health --token \"$CLAWDBOT_GATEWAY_TOKEN\"'"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -61,23 +61,23 @@ services:
         chown -R node:node /home/node /home/linuxbrew /usr/local /usr/local/lib/node_modules /usr/local/bin /usr/local/share /usr/local/lib
         chmod -R u+w /home/node /home/linuxbrew /usr/local /usr/local/lib/node_modules /usr/local/bin /usr/local/share /usr/local/lib
 
-        # Create moltbot CLI wrapper for easy command execution
-        cat > /usr/local/bin/moltbot << 'EOF'
+        # Create openclaw CLI wrapper for easy command execution
+        cat > /usr/local/bin/openclaw << 'EOF'
         #!/bin/sh
-        # Moltbot CLI wrapper - simplifies running commands as the node user
-        # Usage: moltbot <command> [args...]
+        # Openclaw CLI wrapper - simplifies running commands as the node user
+        # Usage: openclaw <command> [args...]
 
         if [ "$(id -u)" != "node" ]; then
-          exec su node -c "node /app/dist/index.js $*"
+          exec su node -c "node /app/dist/entry.js $*"
         else
-          exec node /app/dist/index.js "$@"
+          exec node /app/dist/entry.js "$@"
         fi
         EOF
-        chmod +x /usr/local/bin/moltbot
-        chown node:node /usr/local/bin/moltbot
+        chmod +x /usr/local/bin/openclaw
+        chown node:node /usr/local/bin/openclaw
 
         # Drop to node user and start gateway (app is in /app)
-        exec su node -c "exec node /app/dist/index.js gateway --bind '${CLAWDBOT_GATEWAY_BIND:-lan}' --port 18789 --allow-unconfigured"
+        exec su node -c "exec node /app/dist/entry.js gateway --bind '${CLAWDBOT_GATEWAY_BIND:-lan}' --port 18789 --allow-unconfigured"
 
   tailscale:
     image: tailscale/tailscale:latest
