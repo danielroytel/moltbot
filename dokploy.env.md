@@ -37,6 +37,11 @@ OLLAMA_API_KEY=ollama-local
 If you're running Tailscale separately (not via this compose), you may need:
 
 ```bash
+# Get your auth key from: https://login.tailscale.com/admin/settings/keys
+# Click "Generate auth key" and use "Reusable" for containers
+TS_AUTHKEY=tskey-auth-xxxxx
+
+# Optional: Set a custom hostname for your Tailscale device
 TAILSCALE_HOSTNAME=moltbot
 ```
 
