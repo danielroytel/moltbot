@@ -83,6 +83,15 @@ services:
         mkdir -p /home/node
         echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> /home/node/.bashrc
 
+        # Install Doppler CLI
+        echo "Installing Doppler CLI..."
+        if ! command -v doppler >/dev/null 2>&1; then
+          curl -Ls https://cli.doppler.com/install.sh | sh
+          echo "Doppler CLI installed successfully"
+        else
+          echo "Doppler CLI already installed"
+        fi
+
         # Create base directories (support both legacy and new paths)
         mkdir -p /home/node/.clawdbot/cron /home/node/clawd/canvas /home/node/.clawdbot/agents /home/node/.clawdbot/sessions
         mkdir -p /home/node/.openclaw/cron /home/node/openclaw/agents /home/node/.openclaw/sessions

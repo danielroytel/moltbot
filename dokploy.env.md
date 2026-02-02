@@ -39,9 +39,9 @@ OLLAMA_API_KEY=ollama-local
 
 > **Note**: For Ollama on a different host, you'll need to configure the custom URL via the app's **Configuration → Models** page. See https://docs.openclaw.ai/providers/ollama
 
-## Optional: Tailscale (for separate setup)
+## Optional: Tailscale (for built-in Funnel support)
 
-If you're running Tailscale separately (not via this compose), you may need:
+If you want Tailscale Funnel for secure HTTPS access with a valid certificate:
 
 ```bash
 # Get your auth key from: https://login.tailscale.com/admin/settings/keys
@@ -49,8 +49,34 @@ If you're running Tailscale separately (not via this compose), you may need:
 TS_AUTHKEY=tskey-auth-xxxxx
 
 # Optional: Set a custom hostname for your Tailscale device
-TAILSCALE_HOSTNAME=moltbot
+TAILSCALE_HOSTNAME=openclaw
 ```
+
+After starting, access via **HTTPS**:
+```
+https://openclaw.ts.net:18789/setup
+```
+
+Or find your Funnel URL:
+```bash
+docker exec openclaw-gateway tailscale funnel status
+```
+
+**Note**: Tailscale Funnel requires the Funnel feature to be enabled on your tailnet (https://login.tailscale.com/admin/funnel)
+
+## Optional: Doppler CLI
+
+The Doppler CLI is automatically installed and available to all users (including the `node` user) inside the container. Use it to inject secrets at runtime:
+
+```bash
+# Authenticate with Doppler (run inside container)
+docker exec -it openclaw-gateway doppler login
+
+# Or use a service token (recommended for containers)
+DOPPLER_TOKEN=dplt_xxxxx
+```
+
+The CLI is installed to `/usr/local/bin/doppler` and available system-wide.
 
 > **Note**: For Ollama on a different host, you'll need to configure the custom URL via the app's **Configuration → Models** page. See https://docs.openclaw.ai/providers/ollama
 
