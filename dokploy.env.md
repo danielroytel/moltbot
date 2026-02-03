@@ -66,17 +66,23 @@ docker exec openclaw-gateway tailscale funnel status
 
 ## Optional: Doppler CLI
 
-The Doppler CLI is automatically installed and available to all users (including the `node` user) inside the container. Use it to inject secrets at runtime:
+The Doppler CLI is automatically installed and configured if `DOPPLER_API_KEY` is provided. Secrets are automatically available to all users (including the `node` user) inside the container.
 
 ```bash
-# Authenticate with Doppler (run inside container)
-docker exec -it openclaw-gateway doppler login
-
-# Or use a service token (recommended for containers)
-DOPPLER_TOKEN=dplt_xxxxx
+# Set your Doppler API key (service token)
+DOPPLER_API_KEY=dplt_xxxxx
 ```
 
-The CLI is installed to `/usr/local/bin/doppler` and available system-wide.
+The CLI is installed to `/usr/local/bin/doppler` and configured automatically at startup. You can then inject secrets into your Openclaw commands:
+
+```bash
+# Example: Run openclaw with Doppler secrets injected
+docker exec openclaw-gateway doppler run -- openclaw channels status
+
+# Secrets are available as environment variables in all processes
+```
+
+The token is stored in `/home/node/.bashrc` for the node user and persists across container restarts.
 
 > **Note**: For Ollama on a different host, you'll need to configure the custom URL via the app's **Configuration → Models** page. See https://docs.openclaw.ai/providers/ollama
 

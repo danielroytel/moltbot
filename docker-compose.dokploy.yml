@@ -28,6 +28,8 @@ services:
       # Tailscale (optional - for built-in Funnel support)
       TS_AUTHKEY: ${TS_AUTHKEY}
       TS_HOSTNAME: ${TAILSCALE_HOSTNAME:-openclaw}
+      # Doppler (optional - for secrets management)
+      DOPPLER_API_KEY: ${DOPPLER_API_KEY}
 
     volumes:
       - openclaw-config:/home/node/.openclaw
@@ -90,6 +92,26 @@ services:
           echo "Doppler CLI installed successfully"
         else
           echo "Doppler CLI already installed"
+        fi
+
+        # Configure Doppler if DOPPLER_API_KEY is provided
+        if [ -n "$DOPPLER_API_KEY" ]; then
+          echo "DOPPLER_API_KEY set, configuring Doppler..."
+          # Configure Doppler with the API key (system-wide for all users)
+          export DOPPLER_TOKEN="$DOPPLER_API_KEY"
+          # Make Doppler available to node user by setting up the config
+          mkdir -p /home/node/.config/doppler
+          # Store token for node user (read-only for node)
+          echo "export DOPPLER_TOKEN=\"$DOPPLER_API_KEY\"" >> /home/node/.bashrc
+          echo "Doppler configured for node user"
+          # Verify configuration
+          if su node -c "doppler --version >/dev/null 2>&1"; then
+            echo "Doppler CLI verified for node user"
+          else
+            echo "Warning: Doppler CLI may not be accessible to node user"
+          fi
+        else
+          echo "No DOPPLER_API_KEY set, skipping Doppler configuration"
         fi
 
         # Create base directories (support both legacy and new paths)
