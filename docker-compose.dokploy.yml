@@ -7,6 +7,7 @@ services:
     container_name: openclaw-gateway
     restart: unless-stopped
     init: true
+    user: "0:0"
 
     environment:
       HOME: /home/node
@@ -61,16 +62,14 @@ services:
       start_period: 40s
 
     command:
-      [
-        "node",
-        "dist/index.js",
-        "gateway",
-        "--bind",
-        "${OPENCLAW_GATEWAY_BIND:-${CLAWDBOT_GATEWAY_BIND:-lan}}",
-        "--port",
-        "${OPENCLAW_GATEWAY_PORT:-18789}",
-        "--allow-unconfigured"
-      ]
+      - node
+      - dist/index.js
+      - gateway
+      - --bind
+      - ${OPENCLAW_GATEWAY_BIND:-${CLAWDBOT_GATEWAY_BIND:-lan}}
+      - --port
+      - ${OPENCLAW_GATEWAY_PORT:-18789}
+      - --allow-unconfigured
 
 volumes:
   openclaw-config:
