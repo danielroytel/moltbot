@@ -1,4 +1,4 @@
-# Openclaw Dokploy Environment Variables
+# OpenClaw Dokploy Environment Variables
 
 Copy these variables into your Dokploy service configuration.
 
@@ -16,8 +16,8 @@ Configure volumes through Dokploy's UI, not environment variables.
 ## Image Variable (Optional)
 
 ```bash
-# Override the Docker image (defaults to ghcr.io/moltbot/moltbot:main)
-OPENCLAW_IMAGE=ghcr.io/moltbot/moltbot:main
+# Override the Docker image (defaults to openclaw:local)
+OPENCLAW_IMAGE=openclaw:local
 ```
 
 ## Required Variables
@@ -39,52 +39,25 @@ OLLAMA_API_KEY=ollama-local
 
 > **Note**: For Ollama on a different host, you'll need to configure the custom URL via the app's **Configuration → Models** page. See https://docs.openclaw.ai/providers/ollama
 
-## Optional: Tailscale (for built-in Funnel support)
-
-If you want Tailscale Funnel for secure HTTPS access with a valid certificate:
+## Optional: Doppler Secrets
 
 ```bash
-# Get your auth key from: https://login.tailscale.com/admin/settings/keys
-# Click "Generate auth key" and use "Reusable" for containers
-TS_AUTHKEY=tskey-auth-xxxxx
-
-# Optional: Set a custom hostname for your Tailscale device
-TAILSCALE_HOSTNAME=openclaw
-```
-
-After starting, access via **HTTPS**:
-```
-https://openclaw.ts.net:18789/setup
-```
-
-Or find your Funnel URL:
-```bash
-docker exec openclaw-gateway tailscale funnel status
-```
-
-**Note**: Tailscale Funnel requires the Funnel feature to be enabled on your tailnet (https://login.tailscale.com/admin/funnel)
-
-## Optional: Doppler CLI
-
-The Doppler CLI is automatically installed and configured if `DOPPLER_API_KEY` is provided. Secrets are automatically available to all users (including the `node` user) inside the container.
-
-```bash
-# Set your Doppler API key (service token)
+# Doppler API key (for manual configuration - requires CLI setup in container)
 DOPPLER_API_KEY=dplt_xxxxx
 ```
 
-The CLI is installed to `/usr/local/bin/doppler` and configured automatically at startup. You can then inject secrets into your Openclaw commands:
+The Doppler CLI is **not** pre-installed in this configuration. To use Doppler:
 
-```bash
-# Example: Run openclaw with Doppler secrets injected
-docker exec openclaw-gateway doppler run -- openclaw channels status
+1. Install the CLI manually in the container:
+   ```bash
+   docker exec -it openclaw-gateway sh -c "curl -Ls https://cli.doppler.com/install.sh | sh"
+   ```
 
-# Secrets are available as environment variables in all processes
-```
-
-The token is stored in `/home/node/.bashrc` for the node user and persists across container restarts.
-
-> **Note**: For Ollama on a different host, you'll need to configure the custom URL via the app's **Configuration → Models** page. See https://docs.openclaw.ai/providers/ollama
+2. Configure and use:
+   ```bash
+   docker exec -it openclaw-gateway doppler configure
+   docker exec openclaw-gateway doppler run -- openclaw channels status
+   ```
 
 ## State Directory (Internal Container Paths)
 
@@ -175,7 +148,7 @@ Configure these persistent volume mounts in Dokploy:
 ## Health Check
 
 ```
-node dist/entry.js health --token "$OPENCLAW_GATEWAY_TOKEN"
+node /app/dist/entry.js health --token "$OPENCLAW_GATEWAY_TOKEN"
 ```
 
 ## After First Deploy
@@ -189,7 +162,7 @@ node dist/entry.js health --token "$OPENCLAW_GATEWAY_TOKEN"
 
 ## Traefik Labels (Dokploy)
 
-Add these labels to your Openclaw service in Dokploy for Traefik reverse proxy:
+Add these labels to your OpenClaw service in Dokploy for Traefik reverse proxy:
 
 ### Basic HTTP Routing
 
@@ -247,9 +220,10 @@ traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true
 ```yaml
 services:
   openclaw:
-    image: ghcr.io/moltbot/moltbot:main
+    image: openclaw:local
     container_name: openclaw
     restart: unless-stopped
+    init: true
 
     environment:
       - SETUP_PASSWORD=${SETUP_PASSWORD}

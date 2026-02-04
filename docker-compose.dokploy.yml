@@ -1,20 +1,16 @@
 services:
   openclaw-gateway:
-    image: ${OPENCLAW_IMAGE:-ghcr.io/moltbot/moltbot:main}
+    image: ${OPENCLAW_IMAGE:-openclaw:local}
     container_name: openclaw-gateway
     restart: unless-stopped
-    user: "0:0"
+    init: true
 
     environment:
       HOME: /home/node
       TERM: xterm-256color
-      PATH: /home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       SETUP_PASSWORD: ${SETUP_PASSWORD}
       OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
       CLAWDBOT_GATEWAY_TOKEN: ${CLAWDBOT_GATEWAY_TOKEN} # Legacy fallback
-      CLAUDE_AI_SESSION_KEY: ${CLAUDE_AI_SESSION_KEY}
-      CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
-      CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
       OPENCLAW_STATE_DIR: /home/node/.openclaw
       CLAWDBOT_STATE_DIR: /home/node/.clawdbot # Legacy fallback
       MOLTBOT_STATE_DIR: /home/node/.clawdbot # Legacy fallback
@@ -25,16 +21,18 @@ services:
       OPENCLAW_GATEWAY_PORT: ${OPENCLAW_GATEWAY_PORT:-18789}
       PORT: ${PORT:-8080}
       NODE_ENV: ${NODE_ENV:-production}
-      # Tailscale (optional - for built-in Funnel support)
-      TS_AUTHKEY: ${TS_AUTHKEY}
-      TS_HOSTNAME: ${TAILSCALE_HOSTNAME:-openclaw}
-      # Doppler (optional - for secrets management)
+      # Optional: Claude provider
+      CLAUDE_AI_SESSION_KEY: ${CLAUDE_AI_SESSION_KEY}
+      CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
+      CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
+      # Optional: Doppler secrets (configure manually in container)
       DOPPLER_API_KEY: ${DOPPLER_API_KEY}
+      # Optional: Ollama local LLMs
+      OLLAMA_API_KEY: ${OLLAMA_API_KEY:-ollama-local}
 
     volumes:
       - openclaw-config:/home/node/.openclaw
       - openclaw-workspace:/home/node/openclaw
-      - openclaw-tailscale:/var/lib/tailscale
       # Legacy fallback mounts (for existing volumes)
       - moltbot-config:/home/node/.clawdbot
       - moltbot-workspace:/home/node/clawd
@@ -42,10 +40,6 @@ services:
     ports:
       - "${OPENCLAW_GATEWAY_PORT:-18789}:18789"
       - "${OPENCLAW_BRIDGE_PORT:-18790}:18790"
-
-    cap_add:
-      - NET_ADMIN
-      - SYS_MODULE
 
     labels:
       - traefik.enable=true
@@ -57,178 +51,33 @@ services:
       - traefik.http.services.openclaw.loadbalancer.server.port=18789
 
     healthcheck:
-      test: ["CMD", "sh", "-c", "su node -c 'node /app/dist/entry.js health --token \"${OPENCLAW_GATEWAY_TOKEN:-${CLAWDBOT_GATEWAY_TOKEN}}\"'"]
+      test: ["CMD", "node", "/app/dist/entry.js", "health", "--token", "${OPENCLAW_GATEWAY_TOKEN:-${CLAWDBOT_GATEWAY_TOKEN}}"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
     command:
-      - sh
-      - -c
-      - |
-        # Install prerequisites
-        apt-get update -qq && apt-get install -y curl git
-
-        # Install Homebrew if not already installed
-        if ! command -v brew >/dev/null 2>&1; then
-          echo "Installing Homebrew..."
-          curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh | /bin/bash
-          # Add Homebrew to PATH for current session
-          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-        else
-          echo "Homebrew already installed"
-          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-        fi
-
-        # Add Homebrew to node user's shell profile
-        mkdir -p /home/node
-        echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> /home/node/.bashrc
-
-        # Install Doppler CLI
-        echo "Installing Doppler CLI..."
-        if ! command -v doppler >/dev/null 2>&1; then
-          curl -Ls https://cli.doppler.com/install.sh | sh
-          echo "Doppler CLI installed successfully"
-        else
-          echo "Doppler CLI already installed"
-        fi
-
-        # Configure Doppler if DOPPLER_API_KEY is provided
-        if [ -n "$DOPPLER_API_KEY" ]; then
-          echo "DOPPLER_API_KEY set, configuring Doppler..."
-          # Configure Doppler with the API key (system-wide for all users)
-          export DOPPLER_TOKEN="$DOPPLER_API_KEY"
-          # Make Doppler available to node user by setting up the config
-          mkdir -p /home/node/.config/doppler
-          # Store token for node user (read-only for node)
-          echo "export DOPPLER_TOKEN=\"$DOPPLER_API_KEY\"" >> /home/node/.bashrc
-          echo "Doppler configured for node user"
-          # Verify configuration
-          if su node -c "doppler --version >/dev/null 2>&1"; then
-            echo "Doppler CLI verified for node user"
-          else
-            echo "Warning: Doppler CLI may not be accessible to node user"
-          fi
-        else
-          echo "No DOPPLER_API_KEY set, skipping Doppler configuration"
-        fi
-
-        # Create base directories (support both legacy and new paths)
-        mkdir -p /home/node/.clawdbot/cron /home/node/clawd/canvas /home/node/.clawdbot/agents /home/node/.clawdbot/sessions
-        mkdir -p /home/node/.openclaw/cron /home/node/openclaw/agents /home/node/.openclaw/sessions
-        mkdir -p /home/node/clawd/canvas /home/node/openclaw/canvas
-        mkdir -p /usr/local/lib/node_modules /usr/local/bin /usr/local/share /usr/local/lib
-        mkdir -p /home/node/.npm /home/node/.cache /home/node/.cache/Homebrew
-        mkdir -p /home/node/.config/git /home/linuxbrew/.linuxbrew
-        mkdir -p /var/lib/tailscale /var/run/tailscale
-
-        # BLANKET: Own EVERYTHING as node, open all permissions
-        chown -R node:node /home/node /home/linuxbrew /usr/local /usr/local/lib/node_modules /usr/local/bin /usr/local/share /usr/local/lib /var/lib/tailscale /var/run/tailscale
-        chmod -R u+w /home/node /home/linuxbrew /usr/local /usr/local/lib/node_modules /usr/local/bin /usr/local/share /usr/local/lib /var/lib/tailscale /var/run/tailscale
-
-        # Install Tailscale if TS_AUTHKEY is provided (for built-in Funnel support)
-        if [ -n "$TS_AUTHKEY" ]; then
-          echo "TS_AUTHKEY set, setting up Tailscale..."
-
-          # Check if tailscale is installed, if not install it
-          if ! command -v tailscale >/dev/null 2>&1; then
-            echo "Installing Tailscale..."
-            if curl -fsSL https://tailscale.com/install.sh | sh; then
-              echo "Tailscale installed successfully"
-            else
-              echo "ERROR: Failed to install Tailscale"
-            fi
-          else
-            echo "Tailscale already installed"
-          fi
-
-          # Start tailscaled daemon (idempotent - will restart if already running)
-          echo "Starting Tailscale daemon..."
-          mkdir -p /var/run/tailscale /var/lib/tailscale
-
-          # Kill any existing tailscaled first
-          pkill -9 tailscaled 2>/dev/null || true
-          sleep 1
-
-          # Start fresh
-          tailscaled --tun=userspace-networking --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock > /tmp/tailscaled.log 2>&1 &
-          TAILSCALED_PID=$!
-          echo "tailscaled PID: $TAILSCALED_PID"
-
-          # Wait for daemon socket to be ready
-          echo "Waiting for tailscaled socket..."
-          for i in $(seq 1 60); do
-            if [ -S /var/run/tailscale/tailscaled.sock ]; then
-              echo "tailscaled socket is ready!"
-              break
-            fi
-            echo "Waiting... ($i/60)"
-            sleep 1
-          done
-
-          # Verify daemon is actually responding
-          if ! timeout 5 tailscale status >/dev/null 2>&1; then
-            echo "WARNING: tailscaled socket exists but daemon not responding"
-            echo "tailscaled log:"
-            cat /tmp/tailscaled.log 2>/dev/null || true
-          fi
-
-          # Authenticate with Tailscale
-          echo "Authenticating with Tailscale as $TS_HOSTNAME..."
-          if tailscale up --auth-key="$TS_AUTHKEY" --hostname="$TS_HOSTNAME"; then
-            echo "Tailscale authentication successful"
-
-            # Grant 'node' user permission to run tailscale serve (for Openclaw's Funnel integration)
-            echo "Setting operator permissions for 'node' user..."
-            tailscale set --operator=node 2>/dev/null || echo "Note: Could not set operator (may need admin on tailnet)"
-          else
-            echo "WARNING: Tailscale authentication failed"
-          fi
-
-          # Verify Tailscale is connected
-          echo "Verifying Tailscale status..."
-          if tailscale status >/dev/null 2>&1; then
-            echo "Tailscale is connected!"
-            tailscale status
-          else
-            echo "Warning: Tailscale may not be fully connected"
-          fi
-        else
-          echo "No TS_AUTHKEY set, skipping Tailscale setup"
-        fi
-
-        # Create openclaw CLI wrapper for easy command execution
-        cat > /usr/local/bin/openclaw << 'EOF'
-        #!/bin/sh
-        # Openclaw CLI wrapper - simplifies running commands as the node user
-        # Usage: openclaw <command> [args...]
-
-        if [ "$(id -u)" != "node" ]; then
-          exec su node -c "node /app/dist/entry.js $*"
-        else
-          exec node /app/dist/entry.js "$@"
-        fi
-        EOF
-        chmod +x /usr/local/bin/openclaw
-        chown node:node /usr/local/bin/openclaw
-
-        # Drop to node user and start gateway (app is in /app)
-        exec su node -c "exec node /app/dist/entry.js gateway --bind '${OPENCLAW_GATEWAY_BIND:-${CLAWDBOT_GATEWAY_BIND:-lan}}' --port ${OPENCLAW_GATEWAY_PORT:-18789} --allow-unconfigured"
+      [
+        "node",
+        "/app/dist/entry.js",
+        "gateway",
+        "--bind",
+        "${OPENCLAW_GATEWAY_BIND:-${CLAWDBOT_GATEWAY_BIND:-lan}}",
+        "--port",
+        "${OPENCLAW_GATEWAY_PORT:-18789}",
+        "--allow-unconfigured"
+      ]
 
 volumes:
   openclaw-config:
     driver: local
   openclaw-workspace:
     driver: local
-  openclaw-tailscale:
-    driver: local
   # Legacy volumes for backward compatibility
   moltbot-config:
     driver: local
   moltbot-workspace:
-    driver: local
-  moltbot-tailscale:
     driver: local
 
 networks:
