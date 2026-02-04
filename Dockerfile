@@ -35,19 +35,9 @@ ENV NODE_ENV=production
 RUN chown -R node:node /app
 
 # Create openclaw CLI wrapper for easy command execution
-RUN cat > /usr/local/bin/openclaw << 'EOF'
-#!/bin/sh
-# Openclaw CLI wrapper - simplifies running commands as the node user
-# Usage: openclaw <command> [args...]
-
-if [ "$(id -u)" != "node" ]; then
-  exec su node -c "node /app/dist/index.js $*"
-else
-  exec node /app/dist/index.js "$@"
-fi
-EOF
-RUN chmod +x /usr/local/bin/openclaw
-RUN chown node:node /usr/local/bin/openclaw
+RUN printf '#!/bin/sh\n# Openclaw CLI wrapper\nif [ "$(id -u)" != "node" ]; then\n  exec su node -c "node /app/dist/index.js $*"\nelse\n  exec node /app/dist/index.js "$@"\nfi\n' > /usr/local/bin/openclaw && \
+  chmod +x /usr/local/bin/openclaw && \
+  chown node:node /usr/local/bin/openclaw
 
 # Security hardening: Run as non-root user
 # The node:22-bookworm image includes a 'node' user (uid 1000)
