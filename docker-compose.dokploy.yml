@@ -73,8 +73,22 @@ services:
         mkdir -p /home/node/.clawdbot/canvas /home/node/.clawdbot/cron /home/node/.clawdbot/agents /home/node/.clawdbot/sessions
         mkdir -p /home/node/clawd/canvas /home/node/clawd/agents
 
-        # Fix ownership - everything under /home/node belongs to node user
-        chown -R node:node /home/node
+        # Install Homebrew if not already installed
+        if ! command -v brew >/dev/null 2>&1; then
+          echo "Installing Homebrew..."
+          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" && \
+          echo "Homebrew installed successfully"
+        else
+          echo "Homebrew already installed"
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+        fi
+
+        # Add Homebrew to node user's shell profile
+        mkdir -p /home/node
+        echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> /home/node/.bashrc
+
+        # Fix ownership - everything under /home/node and Homebrew belongs to node user
+        chown -R node:node /home/node /home/linuxbrew
 
         # Create openclaw CLI wrapper (fallback if not in image)
         if [ ! -x /usr/local/bin/openclaw ]; then
