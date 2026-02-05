@@ -113,8 +113,8 @@ services:
           done
 
           # Authenticate with Tailscale
-          echo "Authenticating with Tailscale as $TS_HOSTNAME..."
-          if tailscale up --auth-key="$TS_AUTHKEY" --hostname="$TS_HOSTNAME"; then
+          echo "Authenticating with Tailscale as $TAILSCALE_HOSTNAME..."
+          if tailscale up --auth-key="$TS_AUTHKEY" --hostname="$TAILSCALE_HOSTNAME"; then
             echo "Tailscale authentication successful"
 
             # Grant 'node' user permissions for tailscale serve/funnel
